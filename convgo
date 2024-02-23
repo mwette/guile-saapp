@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+base=$(basename -s .go $1)
+
+objcopy -I binary -B i386 -O elf64-x86-64 \
+	--add-section .note.GNU-stack=/dev/null \
+		$base.go $base.xo
+
+# --- last line ---

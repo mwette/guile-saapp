@@ -4,12 +4,17 @@
 #include <stdlib.h>
 #include <libguile.h>
 
-//extern char* _binary_dummy1_go_start[_binary_dummy1_go_size];
-//extern char _binary_dummy1_go_start[100];
+SCM zcm_c_pointer_to_bytevector(void *pointer, size_t size) {
+  SCM ptr, len, mem;
+
+  ptr = scm_from_pointer(pointer, NULL);
+  len = scm_from_size_t(size);
+  mem = scm_pointer_to_bytevector(ptr, len, SCM_UNDEFINED, SCM_UNDEFINED); 
+  return mem;
+}
+
 extern char _binary_dummy1_go_start[];
 extern char _binary_dummy1_go_end[];
-
-char *abc = "abc";
 
 static void kont(void *closure, int argc, char **argv) {
   char *ptr, *end;
@@ -20,20 +25,11 @@ static void kont(void *closure, int argc, char **argv) {
   ptr = _binary_dummy1_go_start;
   end = _binary_dummy1_go_end;
   siz = end - ptr;
-#if 0
-  ptr = _binary_dummy1_go_start;
-  end = _binary_dummy1_go_end;
-  siz = _binary_dummy1_go_end - _binary_dummy1_go_start;
+  mem = zcm_c_pointer_to_bytevector (ptr, siz);
 
-  siz = *_binary_dummy1_go_size;
-  mem = scm_c_take_typed_bytevector(ptr, siz, SCM_ARRAY_ELEMENT_TYPE_U8, 
-                                    SCM_BOOL_F);
-
-  //mod = scm_resolve_module("(system vm loader)");
-  proc = scm_c_public_ref("(system vm loader)", "load-thunk-from-memory");
+  proc = scm_c_public_ref("system vm loader", "load-thunk-from-memory");
   res = scm_call_1(proc, mem);
 
-#endif
   scm_shell(argc, argv);
 }
 
