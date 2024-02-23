@@ -20,15 +20,16 @@ static void kont(void *closure, int argc, char **argv) {
   char *ptr, *end;
   size_t siz;
   SCM mem, res;
-  SCM proc;
+  SCM load_thunk, mod_init;
 
   ptr = _binary_dummy1_go_start;
   end = _binary_dummy1_go_end;
   siz = end - ptr;
   mem = zcm_c_pointer_to_bytevector (ptr, siz);
 
-  proc = scm_c_public_ref("system vm loader", "load-thunk-from-memory");
-  res = scm_call_1(proc, mem);
+  load_thunk = scm_c_public_ref("system vm loader", "load-thunk-from-memory");
+  mod_init = scm_call_1(load_thunk, mem);
+  res = scm_call_0(mod_init);
 
   scm_shell(argc, argv);
 }

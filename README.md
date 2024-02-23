@@ -1,6 +1,10 @@
-loneli app for guile: create an executable guile w/ embedded modules
+saapp, for sand-alone app, for guile
 
-foreach file $GO_FILES; do objcopy ... $file $(basname -s .go $file).xo; done
-gcc -o app app.c loadem.c *.xo `pkg-config --cflags --libs guile-3.0`
+This is a work in progress.
 
+create an executable guile w/ embedded modules
 
+$ guild compile dummy1.scm 
+$ ./cnvtgo dummy1.go
+$ ./build
+$ ./xguile

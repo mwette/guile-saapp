@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# guild compile dummy1.scm
+# ./convgo dummy1.go
+
 docase=1
 case $docase in
 1)

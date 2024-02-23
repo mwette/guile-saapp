@@ -1,4 +1,5 @@
-/*
+/* this is currently useless
+
 #   _binary_${1}_go_start
 #   _binary_${1}_go_size
 #   _binary_${1}_go_end
