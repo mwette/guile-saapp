@@ -16,11 +16,18 @@ exec guile $0 "$@"
 (define (pp exp) (pretty-print exp))
 (define (sf fmt . args) (apply simple-format #t fmt args))
 
-(define (gencmd gof xof)
-  (string-append
-   "objcopy -I binary -B i386 -O elf64-x86-64" 
-   " --add-section .note.GNU-stack=/dev/null "
-   gof " " xof))
+;; a bit kludgy, for now
+(define (genxo gopath xofile)
+  (let ((wd (getcwd))
+        (gofile (string-append (basename xofile ".xo") ".go")))
+    (chdir "go.d")
+    (symlink gopath gofile)
+    (system 
+     (string-append
+      "objcopy -I binary -B i386 -O elf64-x86-64" 
+      " --add-section .note.GNU-stack=/dev/null "
+      gofile " ../xo.d/" xofile))
+  (chdir wd)))
 
 (define (hash-path path)
   ;; 5 base16 chars based on 24 bit hash
@@ -39,27 +46,35 @@ exec guile $0 "$@"
                (hv (logand (+ (ash hv 3) cv) #xffffff))
                (hi (ash hv -21)))
           (loop (if (zero? hi) hv (lnot24 (logxor hv (ash hi -18)))) (1+ ix))))))
-  
 
-(define (doit lines)
-  (pp lines)
-  (system "mkdir -p xo.d")
-  (for-each
-   (lambda (rpath)
-     (let* ((rfil (basename rpath ".scm"))
-            (rdir (dirname rpath))
-            (rhead (string-append rdir "/" rfil))
-            (gopath (or (%search-load-path (string-append rhead ".go"))
-                        (%search-load-path (string-append rhead ".scm.go"))))
-            (rhash (hash-path rdir))
-            (cfil (string-map (lambda (ch) (if (memq ch '(#\-)) #\_ ch))
-                              (basename (basename rfil ".go") ".scm")))
-            (xofile (string-append rhash "_" cfil ".xo"))
-            (xoname (string-append rhash "_" cfil "_xo")))
-       (sf "xofile=~s\n" xofile)
-       (sf "xoname=~s\n" xoname)
-       #f))
-   lines))
+(define (sanitize-name path)
+  (string-map (lambda (ch) (if (memq ch '(#\- #\.)) #\_ ch)) path))
+
+(define (doit go-files)
+  (unless (access? "xo.d" 7) (system "mkdir xo.d"))
+  (unless (access? "go.d" 7) (system "mkdir go.d"))
+  (let ((go-paths (map canonicalize-path go-files))
+        (symfile (open-output-file "xo.d/xosyms.ci")))
+    (for-each
+     (lambda (gopath)
+       (let* ((rfil (basename gopath ".go"))
+              (rdir (dirname gopath))
+              (rhead (string-append rdir "/" rfil))
+              (rhash (hash-path rdir))
+              (cfil (sanitize-name rfil))
+              (xbase (string-append rhash "_" cfil))
+              (xofile (string-append xbase ".xo"))
+              (ebase (string-append xbase "_go")))
+         (genxo gopath xofile)
+         (simple-format symfile "extern char _binary_~a_start[];\n" ebase)
+         (simple-format symfile "extern char _binary_~a_end[];\n" ebase)
+         #f))
+     go-paths)
+    (close-port symfile)
+    ))
+
+;;(search-path (list (assq-ref %guile-build-info 'ccachedir)) "ice-9/boot-9.go")
+;; 
 
 
 (define options
