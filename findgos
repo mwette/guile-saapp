@@ -1,0 +1,50 @@
+#!/bin/bash
+# -*- scheme -*-
+#|
+# usage:
+#   $ findgos rel/path/file.scm
+# -t TOPDIR  set topdir to find go files
+
+exec guile $0 "$@"
+|#
+!#
+
+(define (tsort filed filel)
+  (define (covered? deps done) (every (lambda (e) (member e done)) deps))
+  (let loop ((done '()) (hd '()) (tl filel))
+    (if (null? tl)
+        (if (null? hd) done (loop done '() hd))
+        (cond
+         ((not (assq-ref filed (car tl)))
+          (loop (cons (car tl) done) hd (cdr tl)))
+         ((covered? (assq-ref filed (car tl)) done)
+          (loop (cons (car tl) done) hd (cdr tl)))
+         (else
+          (loop done (cons (car tl) hd) (cdr tl)))))))
+
+(define (doit)
+  #f)
+
+(use-modules (srfi srfi-37))
+
+(define options
+ (list
+ ))
+
+(define (parse-args args)
+ (args-fold args
+            options
+            (lambda (opt name arg files opts)
+              (fail "unrecognized option: ~S" name)
+              (exit 1))
+            (lambda (file opts files)
+              (values opts (cons file files)))
+            '() '()))
+
+(define (main . args)
+  (call-with-values
+      (lambda () (parse-args args))
+    (lambda (opts files)
+      (let loop ((paths
+
+# --- last line ---

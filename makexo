@@ -1,0 +1,91 @@
+#!/bin/bash
+# -*- scheme -*-
+#|
+# usage:
+#   $ makexos pathsetfile
+# -t TOPDIR  set topdir to find go files
+
+exec guile $0 "$@"
+|#
+!#
+
+(use-modules (ice-9 rdelim))
+(use-modules (srfi srfi-37))
+
+(use-modules (ice-9 pretty-print))
+(define (pp exp) (pretty-print exp))
+(define (sf fmt . args) (apply simple-format #t fmt args))
+
+(define (gencmd gof xof)
+  (string-append
+   "objcopy -I binary -B i386 -O elf64-x86-64" 
+   " --add-section .note.GNU-stack=/dev/null "
+   gof " " xof))
+
+(define (hash-path path)
+  ;; 5 base16 chars based on 24 bit hash
+  (define (C16 ix) (string-ref "ABCDEFGHJKMNPRST" ix))
+  (define (finish hv)
+    (list->string
+     (let lp ((l '()) (v hv) (i 5)) ;; i <= 6
+       (if (zero? i) l
+           (lp (cons (C16 (remainder v 16)) l) (quotient v 16) (1- i))))))
+  (define (lnot24 x)
+    (let ((v (lognot x)))
+      (if (negative? v) (+ v 16777216) v)))
+  (let loop ((hv 0) (ix 0))
+    (if (= ix (string-length path)) (finish hv)
+        (let* ((cv (char->integer (string-ref path ix)))
+               (hv (logand (+ (ash hv 3) cv) #xffffff))
+               (hi (ash hv -21)))
+          (loop (if (zero? hi) hv (lnot24 (logxor hv (ash hi -18)))) (1+ ix))))))
+  
+
+(define (doit lines)
+  (pp lines)
+  (system "mkdir -p xo.d")
+  (for-each
+   (lambda (rpath)
+     (let* ((rfil (basename rpath ".scm"))
+            (rdir (dirname rpath))
+            (rhead (string-append rdir "/" rfil))
+            (gopath (or (%search-load-path (string-append rhead ".go"))
+                        (%search-load-path (string-append rhead ".scm.go"))))
+            (rhash (hash-path rdir))
+            (cfil (string-map (lambda (ch) (if (memq ch '(#\-)) #\_ ch))
+                              (basename (basename rfil ".go") ".scm")))
+            (xofile (string-append rhash "_" cfil ".xo"))
+            (xoname (string-append rhash "_" cfil "_xo")))
+       (sf "xofile=~s\n" xofile)
+       (sf "xoname=~s\n" xoname)
+       #f))
+   lines))
+
+
+(define options
+ (list
+ ))
+
+(define (parse-args args)
+ (args-fold args
+            options
+            (lambda (opt name arg opts)
+              (error "unrecognized option: ~S" name)
+              (exit 1))
+            (lambda (file opts)
+              (acons 'file file opts))
+            '()))
+
+(define (main args)
+  (let* ((opts (parse-args args))
+         (file (or (assq-ref opts 'file) (error "no file")))
+         (port (open-input-file file))
+         (lines (let lp ((l (read-line port)))
+                  (if (eof-object? l) '() (cons l (lp (read-line port))))))
+         )
+    (doit lines)
+    #f))
+
+(main (cdr (program-arguments)))
+
+;; --- last line ---
