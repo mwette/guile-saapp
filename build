@@ -6,11 +6,11 @@
 docase=1
 case $docase in
 1)
-    gcc -g -o xguile xguile.c dummy1.xo dummy2.xo \
+    gcc -g -o xguile xguile.c xo.d/*.xo \
 	`pkg-config --cflags --libs guile-3.0`
     ;;
 2)
-    gcc -g -o xguile xguile.c dummy1.xo dummy2.xo \
+    gcc -g -o xguile xguile.c xo.d/*.xo \
 	-static `pkg-config --cflags --libs guile-3.0`
     ;;
 esac

@@ -21,7 +21,7 @@ exec guile $0 "$@"
   (let ((wd (getcwd))
         (gofile (string-append (basename xofile ".xo") ".go")))
     (chdir "go.d")
-    (symlink gopath gofile)
+    (unless (access? gofile R_OK) (symlink gopath gofile))
     (system 
      (string-append
       "objcopy -I binary -B i386 -O elf64-x86-64" 
@@ -50,12 +50,11 @@ exec guile $0 "$@"
 (define (sanitize-name path)
   (string-map (lambda (ch) (if (memq ch '(#\- #\.)) #\_ ch)) path))
 
-(define (doit go-files)
+(define (gen-xos go-files)
   (unless (access? "xo.d" 7) (system "mkdir xo.d"))
   (unless (access? "go.d" 7) (system "mkdir go.d"))
-  (let ((go-paths (map canonicalize-path go-files))
-        (symfile (open-output-file "xo.d/xosyms.ci")))
-    (for-each
+  (let ((go-paths (map canonicalize-path go-files)))
+    (map
      (lambda (gopath)
        (let* ((rfil (basename gopath ".go"))
               (rdir (dirname gopath))
@@ -63,15 +62,15 @@ exec guile $0 "$@"
               (rhash (hash-path rdir))
               (cfil (sanitize-name rfil))
               (xbase (string-append rhash "_" cfil))
-              (xofile (string-append xbase ".xo"))
-              (ebase (string-append xbase "_go")))
+              (xofile (string-append xbase ".xo")))
          (genxo gopath xofile)
-         (simple-format symfile "extern char _binary_~a_start[];\n" ebase)
-         (simple-format symfile "extern char _binary_~a_end[];\n" ebase)
-         #f))
-     go-paths)
-    (close-port symfile)
-    ))
+         xbase))
+     go-paths)))
+
+;;(ebase (string-append xbase "_go")
+;;(sport (open-output-file "xo.d/xosyms.ci")))
+;;(simple-format sport "extern char _binary_~a_start[];\n" ebase)
+;;(simple-format sport "extern char _binary_~a_end[];\n" ebase)
 
 ;;(search-path (list (assq-ref %guile-build-info 'ccachedir)) "ice-9/boot-9.go")
 ;; 
@@ -98,7 +97,7 @@ exec guile $0 "$@"
          (lines (let lp ((l (read-line port)))
                   (if (eof-object? l) '() (cons l (lp (read-line port))))))
          )
-    (doit lines)
+    (pp (gen-xos lines))
     #f))
 
 (main (cdr (program-arguments)))
