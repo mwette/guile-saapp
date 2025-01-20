@@ -1,7 +1,10 @@
 #!/bin/bash
 # -*- scheme -*-
 #|
-# usage:
+# makexo
+#
+# Copyright (C) 2025 Matthew Wette
+#
 #   $ makexos pathsetfile
 # -t TOPDIR  set topdir to find go files
 
@@ -20,14 +23,16 @@ exec guile $0 "$@"
 (define (genxo gopath xofile)
   (let ((wd (getcwd))
         (gofile (string-append (basename xofile ".xo") ".go")))
-    (chdir "go.d")
-    (unless (access? gofile R_OK) (symlink gopath gofile))
+    (chdir "xo.d")
+    (when (access? gofile R_OK) (delete-file gofile))
+    (symlink gopath gofile)
     (system 
      (string-append
       "objcopy -I binary -B i386 -O elf64-x86-64" 
       " --add-section .note.GNU-stack=/dev/null "
-      gofile " ../xo.d/" xofile))
-  (chdir wd)))
+      gofile " " xofile))
+    (delete-file gofile)
+    (chdir wd)))
 
 (define (hash-path path)
   ;; 5 base16 chars based on 24 bit hash
@@ -50,10 +55,15 @@ exec guile $0 "$@"
 (define (sanitize-name path)
   (string-map (lambda (ch) (if (memq ch '(#\- #\.)) #\_ ch)) path))
 
+(define (canize-path path)
+  (catch #t
+    (lambda () (canonicalize-path path))
+    (lambda (key . args) (sf "path=~s\n" path) (quit))))
+
 (define (gen-xos go-files)
   (unless (access? "xo.d" 7) (system "mkdir xo.d"))
   (unless (access? "go.d" 7) (system "mkdir go.d"))
-  (let ((go-paths (map canonicalize-path go-files)))
+  (let ((go-paths (map canize-path go-files)))
     (map
      (lambda (gopath)
        (let* ((rfil (basename gopath ".go"))
@@ -100,7 +110,7 @@ static void loadem() {
   "  return;\n}\n")
 
 (define (gen-ci xbases)
-  (let ((sport (open-output-file "xo.d/xosyms.ci")))
+  (let ((sport (open-output-file "xo.d/xoload.ci")))
     (for-each
      (lambda (xbase)
        (let ((ebase (string-append xbase "_go")))

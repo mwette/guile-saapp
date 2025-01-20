@@ -3,15 +3,43 @@
 # guild compile dummy1.scm
 # ./convgo dummy1.go
 
-docase=1
+cflags=$(pkg-config --cflags guile-3.0)
+alibs=$(pkg-config --libs guile-3.0)
+lflags=""
+slibs=""
+dlibs=""
+
+function get_stuff () {
+  while [ -n "$*" ]; do
+    case $1 in
+    -L*) lflags="$lflags $1 -Wl,-rpath=$(echo $1 | sed -e s/^..//)"; shift ;;
+    -lguile*) slibs="$dlibs $1"; shift ;;
+    *) dlibs="$dlibs $1"; shift ;;
+    esac
+  done
+}
+
+get_stuff $alibs
+
+docase=4
 case $docase in
 1)
-    gcc -g -o xguile xguile.c xo.d/*.xo \
+    echo gcc -g -o xguile xguile.c xo.d/*.xo \
 	`pkg-config --cflags --libs guile-3.0`
     ;;
 2)
+    # fails
     gcc -g -o xguile xguile.c xo.d/*.xo \
 	-static `pkg-config --cflags --libs guile-3.0`
+    ;;
+3)
+    # fails
+    gcc -g -o xguile xguile.c xo.d/*.xo \
+	$cflags $lflags -static $slibs -shared $dlibs
+    ;;
+4)
+    gcc -g -o xguile xguile.c xo.d/*.xo \
+	$cflags $lflags $slibs $dlibs
     ;;
 esac
    
