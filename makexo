@@ -67,13 +67,56 @@ exec guile $0 "$@"
          xbase))
      go-paths)))
 
-;;(ebase (string-append xbase "_go")
-;;(sport (open-output-file "xo.d/xosyms.ci")))
-;;(simple-format sport "extern char _binary_~a_start[];\n" ebase)
-;;(simple-format sport "extern char _binary_~a_end[];\n" ebase)
+(define code-part1
+  "
+SCM scm_load_thunk_from_memory(SCM);
+
+SCM zcm_c_pointer_to_bytevector(void *pointer, size_t size) {
+  SCM ptr, len, mem;
+
+  ptr = scm_from_pointer(pointer, NULL);
+  len = scm_from_size_t(size);
+  mem = scm_pointer_to_bytevector(ptr, len, SCM_UNDEFINED, SCM_UNDEFINED); 
+  return mem;
+}
+
+static void loadem() {
+  char *ptr, *end;
+  size_t siz;
+  SCM mem, res, mod_init;\n\n")
+
+(define (code-part2a term)
+  (string-append
+   (simple-format #f "  ptr = _binary_~a_go_start;\n" term)
+   (simple-format #f "  end = _binary_~a_go_end;\n" term)))
+
+(define code-part2b
+  "  siz = end - ptr;
+  mem = zcm_c_pointer_to_bytevector (ptr, siz);
+  mod_init = scm_load_thunk_from_memory(mem);
+  res = scm_call_0(mod_init);\n\n")
+
+(define code-part3
+  "  return;\n}\n")
+
+(define (gen-ci xbases)
+  (let ((sport (open-output-file "xo.d/xosyms.ci")))
+    (for-each
+     (lambda (xbase)
+       (let ((ebase (string-append xbase "_go")))
+         (simple-format sport "extern char _binary_~a_start[];\n" ebase)
+         (simple-format sport "extern char _binary_~a_end[];\n" ebase)))
+     xbases)
+    (display code-part1 sport)
+    (for-each
+     (lambda (xbase)
+       (display (code-part2a xbase) sport)
+       (display code-part2b sport))
+     xbases)
+    (display code-part3 sport)
+    (close-port sport)))
 
 ;;(search-path (list (assq-ref %guile-build-info 'ccachedir)) "ice-9/boot-9.go")
-;; 
 
 
 (define options
@@ -96,8 +139,9 @@ exec guile $0 "$@"
          (port (open-input-file file))
          (lines (let lp ((l (read-line port)))
                   (if (eof-object? l) '() (cons l (lp (read-line port))))))
+         (xbases (gen-xos lines))
+         (x (gen-ci xbases))
          )
-    (pp (gen-xos lines))
     #f))
 
 (main (cdr (program-arguments)))
