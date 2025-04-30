@@ -1,4 +1,4 @@
-saapp, for sand-alone app, for guile
+saapp, for stand-alone app, for guile
 
 This is a work in progress.
 

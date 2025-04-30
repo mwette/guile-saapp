@@ -1,4 +1,7 @@
-;; module dependencies
+#!/bin/sh
+
+exec guile $0 "$@"
+!#
 
 (use-modules (ice-9 match))
 (use-modules ((srfi srfi-1) #:select (fold every remove lset-union)))
