@@ -1,4 +1,5 @@
 saapp, for stand-alone app, for guile
+rename to guile-freezer
 
 This is a work in progress.
 

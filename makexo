@@ -3,14 +3,26 @@
 #|
 # makexo
 #
-# Copyright (C) 2025 Matthew Wette
-#
 #   $ makexos pathsetfile
 # -t TOPDIR  set topdir to find go files
 
 exec guile $0 "$@"
 |#
 !#
+;; Copyright (C) 2025 Matthew Wette
+;;
+;; This library is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU Lesser General Public
+;; License as published by the Free Software Foundation; either
+;; version 3 of the License, or (at your option) any later version.
+;;
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; Lesser General Public License for more details.
+;;
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 (use-modules (ice-9 rdelim))
 (use-modules (srfi srfi-37))
@@ -60,12 +72,16 @@ exec guile $0 "$@"
     (lambda () (canonicalize-path path))
     (lambda (key . args) (sf "path=~s\n" path) (quit))))
 
-(define (gen-xos go-files)
+;;(define (gen-xos go-files)
+(define (gen-xos gos-lines)
   (unless (access? "xo.d" 7) (system "mkdir xo.d"))
   (unless (access? "go.d" 7) (system "mkdir go.d"))
-  (let ((go-paths (map canize-path go-files)))
+  (let* ((go-pairs (map (lambda (s) (string-split s #\space)) gos-lines))
+         (go-refs (map car go-pairs))
+         (go-paths (map canize-path (map cadr go-pairs)))
+         )
     (map
-     (lambda (gopath)
+     (lambda (ref gopath)
        (let* ((rfil (basename gopath ".go"))
               (rdir (dirname gopath))
               (rhead (string-append rdir "/" rfil))
@@ -74,8 +90,8 @@ exec guile $0 "$@"
               (xbase (string-append rhash "_" cfil))
               (xofile (string-append xbase ".xo")))
          (genxo gopath xofile)
-         xbase))
-     go-paths)))
+         (cons ref xbase)))
+     go-refs go-paths)))
 
 (define code-part1
   "
@@ -109,20 +125,25 @@ static void loadem() {
 (define code-part3
   "  return;\n}\n")
 
-(define (gen-ci xbases)
+(define (gen-ci xpairs)
   (let ((sport (open-output-file "xo.d/xoload.ci")))
     (for-each
-     (lambda (xbase)
-       (let ((ebase (string-append xbase "_go")))
+     (lambda (xpair)
+       (let* ((ref (car xpair))
+              (xbase (cdr xpair))
+              (ebase (string-append xbase "_go")))
+         (simple-format sport "/* ~a */\n" ref)
          (simple-format sport "extern char _binary_~a_start[];\n" ebase)
          (simple-format sport "extern char _binary_~a_end[];\n" ebase)))
-     xbases)
+     xpairs)
     (display code-part1 sport)
     (for-each
-     (lambda (xbase)
-       (display (code-part2a xbase) sport)
-       (display code-part2b sport))
-     xbases)
+     (lambda (xpair)
+       (let ((ref (car xpair)) (xbase (cdr xpair)))
+         (simple-format sport "  /* ~a */\n" ref)
+         (display (code-part2a xbase) sport)
+         (display code-part2b sport)))
+     xpairs)
     (display code-part3 sport)
     (close-port sport)))
 
@@ -149,8 +170,8 @@ static void loadem() {
          (port (open-input-file file))
          (lines (let lp ((l (read-line port)))
                   (if (eof-object? l) '() (cons l (lp (read-line port))))))
-         (xbases (gen-xos lines))
-         (x (gen-ci xbases))
+         (xpairs (gen-xos lines))
+         (x (gen-ci xpairs))
          )
     #f))
 

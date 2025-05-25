@@ -1,7 +1,23 @@
 #!/bin/sh
+# -*- scheme -*-
 
 exec guile $0 "$@"
 !#
+;; Copyright (C) 2025 Matthew Wette
+;;
+;; This library is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU Lesser General Public
+;; License as published by the Free Software Foundation; either
+;; version 3 of the License, or (at your option) any later version.
+;;
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; Lesser General Public License for more details.
+;;
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this library; if not, see <http://www.gnu.org/licenses/>.
+
 
 (use-modules (ice-9 match))
 (use-modules ((srfi srfi-1) #:select (fold every remove lset-union)))
@@ -120,8 +136,6 @@ exec guile $0 "$@"
          (else
           (loop done (cons (car tl) hd) (cdr tl)))))))
 
-;;(pp (get-dict '(nyacc lang c99 munge)))
-
 (define instccachedir (assq-ref %guile-build-info 'ccachedir))
 (define userccachedir %compile-fallback-path)
 
@@ -133,7 +147,7 @@ exec guile $0 "$@"
     (let ((path (string-append head "/" tail ext)))
       (and (access? path R_OK) path)))
   (or (try instccachedir path ".go")
-      ;;(try userccachedir path ".scm.go")
+      (try userccachedir path ".scm.go")
       (and=> (canize-path (string-append path ".scm"))
              (lambda (path) (try userccachedir path ".go")))
       (error (string-append path " .go file not found"))))
@@ -161,13 +175,19 @@ exec guile $0 "$@"
        ;;(scmpl (map %search-load-path scmfl))
        (gopl (map search-compiled-path basel))
        )
+  ;;(pp basel) (quit)
   ;;(pp depd)
-  (pp scmfl)
+  ;;(pp scmfl)
   ;;(pp scmpl)
   ;;(pp gopl)
   (with-output-to-file output
     ;;(lambda () (for-each (lambda (gop) (display gop) (newline)) gopl)))
-    (lambda () (for-each (lambda (gop) (display gop) (newline)) gopl)))
+    (lambda ()
+      (for-each
+       (lambda (scmf gop)
+         (sf "~a ~a\n" scmf gop)
+         )
+       scmfl gopl)))
   #f)
 
 ;; --- last line ---

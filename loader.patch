@@ -1,0 +1,61 @@
+--- libguile/loader.c-SAAPP	2024-02-25 10:49:11.293515278 -0800
++++ libguile/loader.c	2024-02-25 10:49:21.977223189 -0800
+@@ -352,7 +352,7 @@
+ 
+ #define ABORT(msg) do { err_msg = msg; errno = 0; goto cleanup; } while (0)
+ 
+-static SCM
++SCM
+ load_thunk_from_memory (char *data, size_t len, int is_read_only)
+ #define FUNC_NAME "load-thunk-from-memory"
+ {
+--- libguile/foreign.h-SAAPP	2024-02-25 10:53:59.437943163 -0800
++++ libguile/foreign.h	2024-02-25 10:54:24.365312638 -0800
+@@ -72,6 +72,7 @@
+ SCM_API SCM scm_sizeof (SCM type);
+ SCM_API SCM scm_pointer_address (SCM pointer);
+ SCM_API SCM scm_pointer_to_scm (SCM pointer);
++SCM_API SCM scm_c_pointer_to_bytevector(char *ptr, size_t len);
+ SCM_API SCM scm_scm_to_pointer (SCM scm);
+ SCM_API SCM scm_pointer_to_bytevector (SCM pointer, SCM type,
+                                        SCM offset, SCM len);
+--- libguile/foreign.c-SAAPP	2024-02-25 10:51:15.074190305 -0800
++++ libguile/foreign.c	2024-02-25 10:53:25.262812933 -0800
+@@ -301,6 +301,13 @@
+ }
+ #undef FUNC_NAME
+ 
++SCM
++scm_c_pointer_to_bytevector(char *ptr, size_t len) {
++  SCM ret;
++  ret = scm_c_take_typed_bytevector (ptr, len, SCM_ARRAY_ELEMENT_TYPE_U8, NULL);
++  return ret;
++}
++
+ SCM_DEFINE (scm_bytevector_to_pointer, "bytevector->pointer", 1, 1, 0,
+ 	    (SCM bv, SCM offset),
+ 	    "Return a pointer pointer aliasing the memory pointed to by\n"
+--- libguile/init.c	2024-02-25 10:59:24.649923067 -0800
++++ libguile/init.c-SAAPP	2023-05-29 06:33:12.587487807 -0700
+@@ -216,15 +215,15 @@
+ void
+ scm_load_startup_files ()
+ {
+-  /* We want a path only containing directories from GUILE_LOAD_PATH,
+-     SCM_SITE_DIR and SCM_LIBRARY_DIR when searching for the site init
+-     file, so we do this before loading Ice-9.  */
+-  SCM init_path =
+-    scm_sys_search_load_path (scm_from_utf8_string ("init.scm"));
+-
+   /* Load Ice-9.  */
+   if (!scm_ice_9_already_loaded)
+     {
++      /* We want a path only containing directories from GUILE_LOAD_PATH,
++         SCM_SITE_DIR and SCM_LIBRARY_DIR when searching for the site init
++         file, so we do this before loading Ice-9.  */
++      SCM init_path =
++        scm_sys_search_load_path (scm_from_utf8_string ("init.scm"));
++
+       scm_c_primitive_load_path ("ice-9/boot-9");
+ 
+       /* Load the init.scm file.  */
