@@ -1,3 +1,7 @@
+This project has been superceeded by the guile-freezer project.
+
+DEPRECATED
+
 saapp, for stand-alone app, for guile
 rename to guile-freezer
 
